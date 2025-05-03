@@ -1,0 +1,45 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35931.197
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FearMe", "FearMe\FearMe.csproj", "{DEAF4438-8089-40ED-8175-398E1261D45B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+	ProjectSection(SolutionItems) = preProject
+		build\DoPrebuild.props = build\DoPrebuild.props
+		build\Environment.props = build\Environment.props
+		build\publish.ps1 = build\publish.ps1
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libraries", "libraries", "{1529EF24-2E64-4AAF-A2E8-CC8090C54B32}"
+	ProjectSection(SolutionItems) = preProject
+		build\libraries\Debug\pdb2mdb.exe = build\libraries\Debug\pdb2mdb.exe
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "debug", "debug", "{12182B5D-1721-463D-8E38-B670C745F50E}"
+	ProjectSection(SolutionItems) = preProject
+		build\libraries\Debug\pdb2mdb.exe = build\libraries\Debug\pdb2mdb.exe
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DEAF4438-8089-40ED-8175-398E1261D45B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEAF4438-8089-40ED-8175-398E1261D45B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEAF4438-8089-40ED-8175-398E1261D45B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEAF4438-8089-40ED-8175-398E1261D45B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1529EF24-2E64-4AAF-A2E8-CC8090C54B32} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{12182B5D-1721-463D-8E38-B670C745F50E} = {1529EF24-2E64-4AAF-A2E8-CC8090C54B32}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {04FA40AF-91D5-4CE8-92ED-7530C8DF0D5E}
+	EndGlobalSection
+EndGlobal
