@@ -372,4 +372,4 @@ FodyWeavers.xsd
 # Environment.props
 
 # not the generated dll for thunderstore
-Package/plugins/
+**/Package/plugins/
