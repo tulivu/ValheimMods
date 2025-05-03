@@ -365,7 +365,7 @@ FodyWeavers.xsd
 *.csproj.user
 
 # not the libraries folder
-!libraries/*
+#!libraries/*
 .idea/
 
 # not the valheim path file
