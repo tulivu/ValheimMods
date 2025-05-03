@@ -12,11 +12,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{02EA681E
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "libraries", "libraries", "{1529EF24-2E64-4AAF-A2E8-CC8090C54B32}"
-	ProjectSection(SolutionItems) = preProject
-		build\libraries\Debug\pdb2mdb.exe = build\libraries\Debug\pdb2mdb.exe
-	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "debug", "debug", "{12182B5D-1721-463D-8E38-B670C745F50E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Debug", "Debug", "{8F4295FE-5439-4109-876E-EF301C821887}"
 	ProjectSection(SolutionItems) = preProject
 		build\libraries\Debug\pdb2mdb.exe = build\libraries\Debug\pdb2mdb.exe
 	EndProjectSection
@@ -37,7 +34,7 @@ Global
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{1529EF24-2E64-4AAF-A2E8-CC8090C54B32} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
-		{12182B5D-1721-463D-8E38-B670C745F50E} = {1529EF24-2E64-4AAF-A2E8-CC8090C54B32}
+		{8F4295FE-5439-4109-876E-EF301C821887} = {1529EF24-2E64-4AAF-A2E8-CC8090C54B32}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {04FA40AF-91D5-4CE8-92ED-7530C8DF0D5E}

@@ -41,7 +41,6 @@
 		<None Include="app.config" />
 		<None Include="packages.config" />
 		<None Include="Patches\Humanoid_EquipItem_Patch.cs" />
-		<None Include="README.md" />
 	</ItemGroup>
 
 	<ItemGroup>
