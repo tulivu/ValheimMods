@@ -23,10 +23,7 @@ namespace FearMe
 
 
 			if (!_playersItemLevels.TryGetValue(player.GetPlayerID(), out int itemLevel))
-			{
-				Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} not in item cache");
 				itemLevel = UpdatePlayerItemLevel(player);
-			}
 
 			return itemLevel;
 		}
@@ -43,9 +40,6 @@ namespace FearMe
 				(int itemLevelSum, int numKnownItems, int qualitySum) = player.SumEquipment();
 				int playerItemLevel = CalculateItemLevel(itemLevelSum, numKnownItems, qualitySum);
 				_playersItemLevels[player.GetPlayerID()] = playerItemLevel; // Cache the calculation for later
-
-				Jotunn.Logger.LogInfo($"Player {player.GetPlayerID()} new playerItemLevel: {playerItemLevel}");
-				Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} itemLevelSum: {itemLevelSum}, numKnownItems: {numKnownItems}, qualitySum: {qualitySum}, playerItemLevel: {playerItemLevel}");
 
 				return playerItemLevel;
 			}
@@ -71,13 +65,8 @@ namespace FearMe
 			{
 				if (ItemData.ItemLevels.TryGetValue(player.m_helmetItem.m_shared.m_name, out itemLevel))
 				{
-					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} helmet ItemLevel: {itemLevel}");
 					itemLevelSum += itemLevel;
 					numKnownItems++;
-				}
-				else
-				{
-					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} unknown helmet {player.m_helmetItem.m_shared.m_name}");
 				}
 
 				qualitySum += player.m_helmetItem.m_quality;
@@ -87,13 +76,8 @@ namespace FearMe
 			{
 				if (ItemData.ItemLevels.TryGetValue(player.m_chestItem.m_shared.m_name, out itemLevel))
 				{
-					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} chest ItemLevel: {itemLevel}");
 					itemLevelSum += itemLevel;
 					numKnownItems++;
-				}
-				else
-				{
-					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} unknown chest {player.m_chestItem.m_shared.m_name}");
 				}
 
 				qualitySum += player.m_chestItem.m_quality;
@@ -103,13 +87,8 @@ namespace FearMe
 			{
 				if (ItemData.ItemLevels.TryGetValue(player.m_shoulderItem.m_shared.m_name, out itemLevel))
 				{
-					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} shoulder ItemLevel: {itemLevel}");
 					itemLevelSum += itemLevel;
 					numKnownItems++;
-				}
-				else
-				{
-					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} unknown shoulder {player.m_shoulderItem.m_shared.m_name}");
 				}
 
 				qualitySum += player.m_shoulderItem.m_quality;
@@ -119,13 +98,8 @@ namespace FearMe
 			{
 				if (ItemData.ItemLevels.TryGetValue(player.m_legItem.m_shared.m_name, out itemLevel))
 				{
-					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} legs ItemLevel: {itemLevel}");
 					itemLevelSum += itemLevel;
 					numKnownItems++;
-				}
-				else
-				{
-					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} unknown legs {player.m_legItem.m_shared.m_name}");
 				}
 
 				qualitySum += player.m_legItem.m_quality;

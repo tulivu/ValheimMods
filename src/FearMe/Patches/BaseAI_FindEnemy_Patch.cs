@@ -16,6 +16,7 @@ namespace FearMe.Patches
 				if (!Main.Enabled)
 					return;
 
+
 				// If the creature is cautious of the enemy target, ignore it - don't attack, but don't flee either.
 				var fearLevel = __instance.GetFearLevel(__result);
 				if (fearLevel == FearLevel.Cautious)

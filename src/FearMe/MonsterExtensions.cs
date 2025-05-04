@@ -25,42 +25,38 @@ namespace FearMe
 
 				// Shouldn't happen, but make sure there's actually a monster to be fearful
 				if (ai == null || ai.m_character == null || ai.m_character.m_name == null)
-				{
-					Jotunn.Logger.LogDebug($"AI was null");
 					return FearLevel.NotAfraid;
-				}
 				var character = ai.m_character;
 
-				// Passive (e.g. Dvergr?) & Boss creatures aren't afraid of players
-				if (character.IsTamed() || character.IsBoss() || !ai.HuntPlayer())
+				if (character.IsTamed() || character.IsBoss())
 					return FearLevel.NotAfraid;
 
+				if (ai is MonsterAI monsterAI)
+				{
+					if (monsterAI.m_eventCreature)
+						return FearLevel.NotAfraid;
+				}
 
-				var monsterItemLevel = character.GetMonsterBravery();
-				if (monsterItemLevel <= 0)
+				var monsterBravery = character.GetMonsterBravery();
+				if (monsterBravery <= 0)
 					return FearLevel.NotAfraid;
-
 
 				var playerItemLevel = player.GetPlayerItemLevel();
 				if (playerItemLevel <= 0)
 					return FearLevel.NotAfraid;
 
-
 				FearLevel fearLevel;
 				const int fearThreshold = 2; // How many levels ahead before a player is scary. Must be >= 1
 
 				// Weak player - get them!
-				if (playerItemLevel <= monsterItemLevel)
+				if (playerItemLevel <= monsterBravery)
 					fearLevel = FearLevel.NotAfraid;
 				// Big scary player, run away!
-				else if (playerItemLevel >= monsterItemLevel + fearThreshold)
+				else if (playerItemLevel >= monsterBravery + fearThreshold)
 					fearLevel = FearLevel.Afraid;
 				// A little stronger than us, maybe they'll leave us alone if we don't attack.
 				else
 					fearLevel = FearLevel.Cautious;
-
-				Jotunn.Logger.LogDebug(
-					$"playerItemLevel: {playerItemLevel}, monsterItemLevel: {monsterItemLevel}, fearThreshold: {fearThreshold}, fearLevel: {fearLevel}");
 
 				return fearLevel;
 			}
@@ -82,13 +78,11 @@ namespace FearMe
 
 				if (!MonsterData.MonsterBravery.TryGetValue(character.m_name, out monsterBravery))
 				{
-					Jotunn.Logger.LogDebug($"Unknown monster {character.m_name}");
 					monsterBravery = -1; // Don't know this monster
 				}
 				else
 				{
-					Jotunn.Logger.LogDebug($"Monster level {character.m_level}");
-					monsterBravery += (character.m_level - 1); // Starred monsters are braver!
+					monsterBravery += (character.m_level-1); // Starred monsters are braver!
 				}
 
 				return monsterBravery;
