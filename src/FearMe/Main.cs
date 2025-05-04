@@ -2,7 +2,6 @@ using System;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
-using BepInEx.Logging;
 using HarmonyLib;
 using Jotunn.Extensions;
 using Jotunn.Utils;
@@ -19,6 +18,7 @@ namespace FearMe
 	// https://elin-modding-resources.github.io/Elin.Docs/articles/50_Patching/Transpiler%20101/codematcher
 	// https://gist.github.com/JavidPack/454477b67db8b017cb101371a8c49a1c
 	// https://valheim-modding.github.io/Jotunn/data/localization/translations/English.html
+	// https://github.com/loco-choco/TranspilerHandbook/blob/main/transpiler.md
 
 
 	[BepInPlugin(PLUGIN_GUID, PLUGIN_NAME, PLUGIN_VERSION)]
@@ -53,6 +53,7 @@ namespace FearMe
 			{
 				_harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PLUGIN_GUID);
 				BindConfig();
+				RegisterRPCs();
 
 				_loaded = true;
 			}
@@ -91,6 +92,11 @@ namespace FearMe
 			// If enabling, it can't be trusted anymore since it wasn't tracking updates, and so needs to be rebuilt.
 
 			PlayerExtensions.ClearPlayerItemLevels();
+		}
+
+		private void RegisterRPCs()
+		{
+			PlayerExtensions.RegisterRPCs();
 		}
 	}
 }

@@ -1,5 +1,9 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using Jotunn.Entities;
+using Jotunn.Managers;
+using UnityEngine;
 
 namespace FearMe
 {
@@ -14,6 +18,12 @@ namespace FearMe
 			// ok to do this, even if mod is disabled
 
 			_playersItemLevels.Clear();
+		}
+
+		private static void SetPlayerItemLevel(long playerId, int playerItemLevel)
+		{
+			Jotunn.Logger.LogMessage($"UpdatePlayerItemLevel {playerId} to {playerItemLevel}");
+			_playersItemLevels[playerId] = playerItemLevel; // Cache the calculation for later
 		}
 
 		public static int GetPlayerItemLevel(this Player player)
@@ -36,11 +46,27 @@ namespace FearMe
 					return 0;
 
 
-				// Figure out the armor levels of the equipped gear, based on the biomes they come from.
-				(int itemLevelSum, int qualitySum, int numItems) = player.SumEquipment();
-				int playerItemLevel = CalculateItemLevel(itemLevelSum, qualitySum, numItems);
+				int playerItemLevel = 0;
 
-				_playersItemLevels[player.GetPlayerID()] = playerItemLevel; // Cache the calculation for later
+				var playerId = player.GetPlayerID();
+				if (playerId != 0)
+				{
+					(int itemLevelSum, int qualitySum, int numItems) = player.SumEquipment();
+					playerItemLevel = CalculateItemLevel(itemLevelSum, qualitySum, numItems);
+
+					SetPlayerItemLevel(playerId, playerItemLevel);
+
+					if (!ZNet.IsSinglePlayer)
+					{
+						var sender = ZRoutedRpc.instance == null ? "NULL" : ZRoutedRpc.instance.m_id.ToString();
+						Jotunn.Logger.LogMessage($"PlayerItemLevelRPC sending {playerId} {playerItemLevel} from {sender} to {ZRoutedRpc.Everybody}");
+
+						var package = new ZPackage();
+						package.Write(playerId);
+						package.Write(playerItemLevel);
+						_playerItemLevelRPC.SendPackage(ZRoutedRpc.Everybody, package);
+					}
+				}
 
 				return playerItemLevel;
 			}
@@ -52,6 +78,7 @@ namespace FearMe
 			}
 		}
 
+		// Figure out the armor levels of the equipped gear, based on the biomes they are from
 		private static (int itemLevelSum, int qualitySum, int numItems) SumEquipment(this Player player)
 		{
 			var itemLevelSum = 0;
@@ -120,6 +147,48 @@ namespace FearMe
 			}
 
 			return playerItemLevel;
+		}
+
+
+		private static CustomRPC _playerItemLevelRPC;
+
+		public static void RegisterRPCs()
+		{
+			_playerItemLevelRPC = NetworkManager.Instance.AddRPC(
+				"RPC_PlayerItemLevel",
+				OnServerReceive_PlayerItemLevelRPC,
+				OnClientReceive_PlayerItemLevelRPC);
+		}
+
+		private static IEnumerator OnServerReceive_PlayerItemLevelRPC(long sender, ZPackage package)
+		{
+			Jotunn.Logger.LogMessage($"OnServerReceive_PlayerItemLevelRPC from {sender}");
+
+			if (package != null && package.Size() > 0)
+			{
+				var playerId = package.ReadLong();
+				var playerItemLevel = package.ReadInt();
+
+				SetPlayerItemLevel(playerId, playerItemLevel);
+			}
+
+			yield break;
+		}
+
+		// React to the RPC call on a client
+		private static IEnumerator OnClientReceive_PlayerItemLevelRPC(long sender, ZPackage package)
+		{
+			Jotunn.Logger.LogMessage($"OnClientReceive_PlayerItemLevelRPC from {sender}");
+
+			if (package != null && package.Size() > 0)
+			{
+				var playerId = package.ReadLong();
+				var playerItemLevel = package.ReadInt();
+
+				SetPlayerItemLevel(playerId, playerItemLevel);
+			}
+
+			yield break;
 		}
 	}
 }
