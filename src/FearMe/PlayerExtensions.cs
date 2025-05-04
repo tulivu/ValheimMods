@@ -37,8 +37,9 @@ namespace FearMe
 
 
 				// Figure out the armor levels of the equipped gear, based on the biomes they come from.
-				(int itemLevelSum, int numKnownItems, int qualitySum) = player.SumEquipment();
-				int playerItemLevel = CalculateItemLevel(itemLevelSum, numKnownItems, qualitySum);
+				(int itemLevelSum, int qualitySum, int numItems) = player.SumEquipment();
+				int playerItemLevel = CalculateItemLevel(itemLevelSum, qualitySum, numItems);
+
 				_playersItemLevels[player.GetPlayerID()] = playerItemLevel; // Cache the calculation for later
 
 				return playerItemLevel;
@@ -51,22 +52,20 @@ namespace FearMe
 			}
 		}
 
-		private static (int itemLevelSum, int numKnownItems, int qualitySum) SumEquipment(this Player player)
+		private static (int itemLevelSum, int qualitySum, int numItems) SumEquipment(this Player player)
 		{
 			var itemLevelSum = 0;
-			int itemLevel;
-
-			// Trying to allow for mods with new armor, so only include items in the average if they are known.
-			var numKnownItems = 0;
-
 			var qualitySum = 0;
+			var numItems = 0;
+
+			int itemLevel;
 
 			if (player.m_helmetItem != null)
 			{
 				if (ItemData.ItemLevels.TryGetValue(player.m_helmetItem.m_shared.m_name, out itemLevel))
 				{
 					itemLevelSum += itemLevel;
-					numKnownItems++;
+					numItems++;
 				}
 
 				qualitySum += player.m_helmetItem.m_quality;
@@ -77,12 +76,14 @@ namespace FearMe
 				if (ItemData.ItemLevels.TryGetValue(player.m_chestItem.m_shared.m_name, out itemLevel))
 				{
 					itemLevelSum += itemLevel;
-					numKnownItems++;
+					numItems++;
 				}
 
 				qualitySum += player.m_chestItem.m_quality;
 			}
 
+			// Ignore the cloak, since it's more utility than armor.
+			/*
 			if (player.m_shoulderItem != null)
 			{
 				if (ItemData.ItemLevels.TryGetValue(player.m_shoulderItem.m_shared.m_name, out itemLevel))
@@ -93,42 +94,29 @@ namespace FearMe
 
 				qualitySum += player.m_shoulderItem.m_quality;
 			}
+			*/
 
 			if (player.m_legItem != null)
 			{
 				if (ItemData.ItemLevels.TryGetValue(player.m_legItem.m_shared.m_name, out itemLevel))
 				{
 					itemLevelSum += itemLevel;
-					numKnownItems++;
+					numItems++;
 				}
 
 				qualitySum += player.m_legItem.m_quality;
 			}
 
-			return (itemLevelSum, numKnownItems, qualitySum);
+			return (itemLevelSum, qualitySum, numItems);
 		}
 
-		private static int CalculateItemLevel(int itemLevelSum, int numKnownItems, int qualitySum)
+		private static int CalculateItemLevel(int itemLevelSum, int qualitySum, int numItems)
 		{
-			var playerItemLevel = 0;
+			var playerItemLevel = -1;
 
-			if (numKnownItems > 0)
+			if (numItems > 0)
 			{
-				// Add a little extra initial armor to smooth the transition from high-quality/low-biome to low-quality/high-biome armor.
-				var totalItemLevelSum = itemLevelSum + (numKnownItems - 1);
-
-				// Average the item levels, ignoring unknown gear.
-				var averageItemLevel = totalItemLevelSum / numKnownItems;
-
-				// Add a little bonus for maxed out gear.
-				playerItemLevel = averageItemLevel + (qualitySum / 16);
-			}
-			else
-			{
-				if (qualitySum > 0)
-				{
-					playerItemLevel = -1; // Wearing gear, but don't know about any of it
-				}
+				playerItemLevel = ((3 * itemLevelSum + qualitySum) - (numItems - 1)) / (3 * numItems);
 			}
 
 			return playerItemLevel;
