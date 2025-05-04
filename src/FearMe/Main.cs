@@ -64,10 +64,7 @@ namespace FearMe
 
 		private void OnDestroy()
 		{
-			// Not sure if this matters, but cleanup seems like a good practice
-
 			UnbindConfig();
-			_harmony?.UnpatchSelf();
 		}
 #pragma warning restore IDE0051
 

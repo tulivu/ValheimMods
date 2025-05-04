@@ -40,7 +40,6 @@ namespace FearMe
 
 
 				// Figure out the armor levels of the equipped gear, based on the biomes they come from.
-
 				(int itemLevelSum, int numKnownItems, int qualitySum) = player.SumEquipment();
 				int playerItemLevel = CalculateItemLevel(itemLevelSum, numKnownItems, qualitySum);
 				_playersItemLevels[player.GetPlayerID()] = playerItemLevel; // Cache the calculation for later
@@ -113,7 +112,7 @@ namespace FearMe
 					Jotunn.Logger.LogDebug($"Player {player.GetPlayerID()} unknown shoulder {player.m_shoulderItem.m_shared.m_name}");
 				}
 
-				qualitySum += player.m_helmetItem.m_quality;
+				qualitySum += player.m_shoulderItem.m_quality;
 			}
 
 			if (player.m_legItem != null)

@@ -1,6 +1,6 @@
 # Building
 
-1. 1. Install BepInEx
+1. Install BepInEx
 2. Install Jotunn
 3. Update src/build/Environment.props
 	1. <VALHEIM_INSTALL>
