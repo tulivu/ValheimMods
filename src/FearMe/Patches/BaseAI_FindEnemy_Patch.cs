@@ -17,8 +17,14 @@ namespace FearMe.Patches
 					return;
 
 
-				// If the creature is cautious of the enemy target, ignore it - don't attack, but don't flee either.
+
 				var fearLevel = __instance.GetFearLevel(__result);
+
+				if(__result != null && __result.IsPlayer())
+					Jotunn.Logger.LogInfo($"{__instance?.m_character?.m_name ?? "UNKONWN"} is {Enum.GetName(typeof(FearLevel), fearLevel)} of {__result.m_name ?? "UNKNOWN"}");
+
+				// If the creature is cautious of the enemy target, ignore it - don't attack, but don't flee either.
+				// Doesn't stop attacking if already attacking, though
 				if (fearLevel == FearLevel.Cautious)
 					__result = null;
 			}
