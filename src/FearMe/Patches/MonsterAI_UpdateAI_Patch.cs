@@ -36,9 +36,6 @@ namespace FearMe.Patches
 				// Handled in Main - disables the mod
 				.ThrowIfInvalid("Could not find location to patch in MonsterAI.UpdateAI")
 
-				// Insert new code before the located code
-				.Start()
-
 				/*
 				 * Insert this custom code:
 				 * 

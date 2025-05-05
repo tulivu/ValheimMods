@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
@@ -52,7 +54,8 @@ namespace FearMe
 			try
 			{
 				_harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PLUGIN_GUID);
-				BindConfig();
+				
+				LoadConfig();
 				RegisterRPCs();
 
 				_loaded = true;
@@ -65,9 +68,23 @@ namespace FearMe
 
 		private void OnDestroy()
 		{
-			UnbindConfig();
+			_loaded = false;
+
+			UnloadConfig();
 		}
 #pragma warning restore IDE0051
+
+		private void LoadConfig()
+		{
+			BindConfig();
+			BindData();
+		}
+
+		private void UnloadConfig()
+		{
+			UnbindConfig();
+			UnbindData();
+		}
 
 		private void BindConfig()
 		{
@@ -80,19 +97,179 @@ namespace FearMe
 			_enabled.SettingChanged += Enabled_SettingChanged;
 		}
 
-		private void UnbindConfig()
-		{
-			if (_enabled != null)
-				_enabled.SettingChanged -= Enabled_SettingChanged;
-		}
-
 		private void Enabled_SettingChanged(object sender, System.EventArgs e)
 		{
 			// If disabling, the cache won't be used anymore
-			// If enabling, it can't be trusted anymore since it wasn't tracking updates, and so needs to be rebuilt.
+			// If enabling, it can't be trusted since it wasn't tracking updates
 
 			PlayerExtensions.ClearPlayerItemLevels();
 		}
+
+		private void UnbindConfig()
+		{
+			if (_enabled != null)
+			{
+				_enabled.SettingChanged -= Enabled_SettingChanged;
+				_enabled = null;
+			}
+		}
+
+		private void BindData()
+		{
+			var itemDataPath = Path.Combine(BepInEx.Paths.ConfigPath, "FearMe.ItemData.json");
+			if (File.Exists(itemDataPath))
+			{
+				var json = File.ReadAllText(itemDataPath);
+				var itemLevels = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(json);
+				ItemData.ItemLevels = itemLevels;
+			}
+#if DEBUG
+			else
+			{
+				var json = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
+				File.WriteAllText(itemDataPath, json);
+			}
+#endif
+
+			var monsterDataPath = Path.Combine(BepInEx.Paths.ConfigPath, "FearMe.MonsterData.json");
+			if (File.Exists(monsterDataPath))
+			{
+				var json = File.ReadAllText(monsterDataPath);
+				var monsterBravery = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(json);
+				MonsterData.MonsterBravery = monsterBravery;
+			}
+#if DEBUG
+			else
+			{
+				var json = SimpleJson.SimpleJson.SerializeObject(MonsterData.MonsterBravery);
+				File.WriteAllText(monsterDataPath, json);
+			}
+#endif
+		}
+
+		private void UnbindData()
+		{
+		}
+
+		//private void BindData()
+		//{
+		//	BindData("ItemData.json", ImportItemData, ExportItemData);
+		//	BindData("MonsterData.json", ImportMonsterData, ExportMonsterData);
+		//}
+
+		//private void ImportItemData(string data)
+		//{
+		//	var itemLevels = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(data);
+		//	ItemData.ItemLevels = itemLevels;
+		//}
+
+		//private string ExportItemData()
+		//{
+		//	var data = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
+		//	return data;
+		//}
+
+		//private void ImportMonsterData(string data)
+		//{
+		//	var monsterBravery = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(data);
+		//	MonsterData.MonsterBravery = monsterBravery;
+		//}
+
+		//private string ExportMonsterData()
+		//{
+		//	var data = SimpleJson.SimpleJson.SerializeObject(MonsterData.MonsterBravery);
+		//	return data;
+		//}
+
+		//private void UnbindData()
+		//{
+		//	foreach (var watcher in _watchers)
+		//	{
+		//		watcher.Dispose();
+		//	}
+		//	_watchers.Clear();
+		//}
+
+		//private IList<DataWatcher> _watchers = new List<DataWatcher>();
+
+		//private void BindData(string filename, Action<string> importData, Func<string> exportData = null)
+		//{
+		//	var dataWatcher = new DataWatcher(filename, importData, exportData);
+		//	_watchers.Add(dataWatcher);
+		//}
+
+		//private class DataWatcher : IDisposable
+		//{
+		//	private FileSystemWatcher _watcher;
+		//	private DateTimeOffset _lastUpdate = DateTimeOffset.MinValue;
+
+		//	private Action<string> _importData;
+		//	private Func<string> _exportData;
+
+		//	private bool _disposedValue = false;
+
+
+		//	public DataWatcher(string filename, Action<string> importData, Func<string> exportData)
+		//	{
+		//		var dataFileWatcher = new FileSystemWatcher(BepInEx.Paths.ConfigPath, filename);
+		//		dataFileWatcher.Changed += ReloadDataFile;
+		//		dataFileWatcher.Created += ReloadDataFile;
+		//		dataFileWatcher.Renamed += ReloadDataFile;
+
+		//		dataFileWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
+		//		dataFileWatcher.EnableRaisingEvents = true;
+
+		//		_watcher = dataFileWatcher;
+		//		_importData = importData;
+		//		_exportData = exportData;
+		//	}
+
+		//	private void ReloadDataFile(object sender, FileSystemEventArgs eventArgs)
+		//	{
+		//		try
+		//		{
+		//			if ((DateTimeOffset.UtcNow - _lastUpdate).TotalMilliseconds < 2000)
+		//				return;
+
+		//			if (File.Exists(eventArgs.FullPath))
+		//			{
+		//				var data = File.ReadAllText(eventArgs.FullPath);
+		//				_importData(data);
+		//			}
+		//			else
+		//			{
+		//				if (_exportData != null)
+		//				{
+		//					var data = _exportData();
+		//					File.WriteAllText(data, eventArgs.FullPath);
+		//				}
+		//			}
+		//		}
+		//		catch (Exception ex)
+		//		{
+		//			Utils.LogException(ex, "Exception during ReloadDataFile:");
+		//		}
+		//	}
+
+		//	protected virtual void Dispose(bool disposing)
+		//	{
+		//		if (!_disposedValue)
+		//		{
+		//			if (disposing)
+		//			{
+		//				_watcher.Dispose();
+		//			}
+
+		//			_disposedValue = true;
+		//		}
+		//	}
+
+		//	public void Dispose()
+		//	{
+		//		Dispose(disposing: true);
+		//		GC.SuppressFinalize(this);
+		//	}
+		//}
 
 		private void RegisterRPCs()
 		{

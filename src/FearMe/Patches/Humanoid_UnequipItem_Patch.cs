@@ -16,6 +16,7 @@ namespace FearMe.Patches
 				if (!Main.Enabled)
 					return;
 
+
 				// When something is unequipped, recalculate the player's level
 				if (__instance is Player player)
 				{

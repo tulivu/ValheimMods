@@ -38,7 +38,10 @@ namespace FearMe
 
 		private static void SetPlayerItemLevel(long playerId, int playerItemLevel, bool send)
 		{
+#if DEBUG
 			Jotunn.Logger.LogDebug($"Setting player {playerId} to {playerItemLevel}");
+#endif
+
 			_playersItemLevels[playerId] = playerItemLevel; // Cache the calculation for later
 
 			if(send)
@@ -61,7 +64,10 @@ namespace FearMe
 					(int itemLevelSum, int qualitySum, int numItems) = player.SumEquipment();
 					playerItemLevel = CalculateItemLevel(itemLevelSum, qualitySum, numItems);
 
-					SetPlayerItemLevel(playerId, playerItemLevel, true);
+					if (!_playersItemLevels.TryGetValue(playerId, out var previousPlayerItemLevel) || previousPlayerItemLevel != playerItemLevel)
+					{
+						SetPlayerItemLevel(playerId, playerItemLevel, send: true);
+					}
 				}
 
 				return playerItemLevel;
@@ -159,7 +165,9 @@ namespace FearMe
 		{
 			try
 			{
+#if DEBUG
 				Jotunn.Logger.LogDebug($"{nameof(OnServerReceive_PlayerItemLevelRPC)} from {sender}");
+#endif
 
 				if (package != null && package.Size() > 0)
 				{
@@ -181,7 +189,9 @@ namespace FearMe
 		{
 			try
 			{
+#if DEBUG
 				Jotunn.Logger.LogDebug($"{nameof(OnClientReceive_PlayerItemLevelRPC)} from {sender}");
+#endif
 
 				if (package != null && package.Size() > 0)
 				{
@@ -206,8 +216,10 @@ namespace FearMe
 		{
 			if (!ZNet.IsSinglePlayer)
 			{
+#if DEBUG
 				var sender = ZRoutedRpc.instance == null ? "NULL" : ZRoutedRpc.instance.m_id.ToString();
 				Jotunn.Logger.LogDebug($"Sending {playerId} {playerItemLevel} from {sender} to {ZRoutedRpc.Everybody}");
+#endif
 
 				var package = new ZPackage();
 				package.Write(playerId);
