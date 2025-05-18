@@ -11,17 +11,20 @@ namespace FearMe.Patches
 		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
 		{
 			/*
-			 * Look for "this.m_fleeIfHurtWhenTargetCantBeReached" to find the code below, which is along with the other Flee() checks:
+			 * Starting from the beginning of the method,
+			 * look for "this.m_fleeIfHurtWhenTargetCantBeReached" to find the code below,
+			 * which is along with the other Flee() checks:
 			 * 
-			 * ...
-			 * if (**m_fleeIfHurtWhenTargetCantBeReached** && m_targetCreature != null && m_timeSinceAttacking > 30f && m_timeSinceHurt < 20f)
-			 * {
-			 *	 Flee(dt, m_targetCreature.transform.position);
-			 *	 m_lastKnownTargetPos = this.transform.position;
-			 *	 m_updateTargetTimer = 1f;
-			 *	 return true;
-			 * }
-			 * ...
+			 *   ...
+			 *   if (**m_fleeIfHurtWhenTargetCantBeReached** && m_targetCreature != null && m_timeSinceAttacking > 30f && m_timeSinceHurt < 20f)
+			 *   {
+			 *	   Flee(dt, m_targetCreature.transform.position);
+			 *	   m_lastKnownTargetPos = this.transform.position;
+			 *	   m_updateTargetTimer = 1f;
+			 *	   return true;
+			 *   }
+			 *   ...
+			 *   
 			 */
 			var matcher = new CodeMatcher(instructions, generator)
 				.MatchStartForward(
@@ -33,28 +36,20 @@ namespace FearMe.Patches
 							nameof(MonsterAI.m_fleeIfHurtWhenTargetCantBeReached))))
 				)
 
-				// Handled in Main - disables the mod
+				// Handled in Main - disables the mod.
+				// Might happen if some other mod changes this function,
+				// or if the base game is changed.
 				.ThrowIfInvalid("Could not find location to patch in MonsterAI.UpdateAI");
 
 
 			/*
-			 * Insert this custom code:
-			 * 
-			 * // If GetFearLevel()
-			 * //   Is FearLevel.Afraid:2, then m_targetCreature is a scary Player -
-			 * //     Flee() from them!
-			 * //   Is FearLevel.Cautious:1, then m_targetCreature will be null from BaseAI_FindEnemy_Patch -
-			 * //     continue with normal code to wander or whatever
-			 * //   Is FearLevel.Unafraid:0, then
-			 * //     continue with normal code to do the normal charge/circle/attack logic
+			 * Insert this custom IL before the found code:
 			 * 
 			 * ...
 			 * OLDLABELS:
 			 * 
-			 * if(Fear.GetFearLevel(this, this.m_targetCreature) < 2) 
+			 * if(!MonsterAI_UpdateAI_Patch.RunAway(this, dt)) 
 			 *	 goto NEWLABEL
-			 * 
-			 * MonsterAI_UpdateAI_Patch.RunAway(this, dt);
 			 * 
 			 * return true;
 			 * 
@@ -65,65 +60,68 @@ namespace FearMe.Patches
 
 			// Setup the labels so existing code jumps to the start of the new block of code, instead of jumping over it.
 
+			// Where code was jumping to before - being moved to the new inserted instructions
 			var oldLabels = matcher.Labels;
 			matcher.Labels = new List<Label>();
 
+			// Label the current instruction to use to jump to later,
+			// before inserting any new instructions,
+			// which will push this down the stack after the new instructions.
 			matcher.CreateLabel(out var newLabel);
 
+
 			matcher
-						// (this,
-						.Insert(new CodeInstruction(OpCodes.Ldarg_0))
-						.AddLabels(oldLabels)
-						.Advance(1)
+					// (this
+					.Insert(new CodeInstruction(OpCodes.Ldarg_0))
 
-						// this
-						.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
-						// .m_targetCreature)
-						.InsertAndAdvance(new CodeInstruction(
-							OpCodes.Ldfld,
-							AccessTools.Field(
-								typeof(MonsterAI),
-								nameof(MonsterAI.m_targetCreature))))
+				// Move the old labels here, to the start of this inserted code,
+				// so that the existing code jumps to this new instruction
+				// instead of where it was jumping to before, which was after this code
+				.AddLabels(oldLabels)
+				.Advance(1)
 
-					// BaseAIExtensions.GetFearLevel(this, this.m_targetCreature)
-					.InsertAndAdvance(new CodeInstruction(
-						OpCodes.Call,
-						AccessTools.Method(
-							typeof(MonsterExtensions),
-							nameof(MonsterExtensions.GetFearLevel))))
-
-					// constant: 2 (FearLevel.Afraid)
-					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldc_I4_2))
-
-				// If (BaseAIExtensions.GetFearLevel(this, this.m_targetCreature) < FearLevel.Afraid)
-				//   jump to NEWLABEL;
-				.InsertAndAdvance(new CodeInstruction(OpCodes.Blt, newLabel))
-
-					// Else
-
-					// this
-					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
-
-					// dt
+					// , dt)
 					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_1))
 
-				// MonsterAI_UpdateAI_Patch.RunAway(this, dt);
+				// MonsterExtensions.RunAway(this, dt)
 				.InsertAndAdvance(new CodeInstruction(
 					OpCodes.Call,
 					AccessTools.Method(
-						typeof(MonsterExtensions),
-						nameof(MonsterExtensions.RunAway))))
+						typeof(MonsterAI_UpdateAI_Patch),
+						nameof(MonsterAI_UpdateAI_Patch.RunAway))))
 
 
-					// constant: 1 (true)
-					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldc_I4_1))
+				// if (!MonsterExtensions.RunAway(this, dt))
+				//   jump to NEWLABEL;
+				.InsertAndAdvance(new CodeInstruction(OpCodes.Brfalse, newLabel))
+						// Else
 
-				// return true
-				.InsertAndAdvance(new CodeInstruction(OpCodes.Ret));
+						// constant: 1 (true)
+						.InsertAndAdvance(new CodeInstruction(OpCodes.Ldc_I4_1))
+
+					// return true;
+					.InsertAndAdvance(new CodeInstruction(OpCodes.Ret));
 
 			// NEWLABEL ends up here
 
 			return matcher.Instructions();
+		}
+
+		// Called from the inserted IL.
+		// Put as much of the custom logic as possible here, to simplify the custom IL coding
+		public static bool RunAway(this BaseAI ai, float dt)
+		{
+			bool fleeing = false;
+
+			var target = ai.GetTargetCreature();
+			var fearLevel = ai.GetFearLevel(target);
+			if (fearLevel == FearLevel.Afraid)
+			{
+				fleeing = true;
+				ai.Flee(dt, target.transform.position);
+			}
+
+			return fleeing;
 		}
 	}
 }

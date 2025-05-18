@@ -22,6 +22,11 @@ namespace FearMe
 	// https://valheim-modding.github.io/Jotunn/data/localization/translations/English.html
 	// https://github.com/loco-choco/TranspilerHandbook/blob/main/transpiler.md
 
+	// TODOs:
+	// Different behaviors at night?
+	// Smarter BroadcastPlayerItemLevels to reduce frequency?
+	// Support for custom armor/monsters?
+
 
 	[BepInPlugin(PLUGIN_GUID, PLUGIN_NAME, PLUGIN_VERSION)]
 	[BepInDependency(Jotunn.Main.ModGuid)]

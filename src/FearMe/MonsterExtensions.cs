@@ -95,13 +95,5 @@ namespace FearMe
 				return -1;
 			}
 		}
-
-		public static void RunAway(this MonsterAI monsterAI, float dt)
-		{
-			//Jotunn.Logger.LogInfo($"{monsterAI?.m_character?.m_name ?? "NULL"} is fleeing in terror");
-
-			monsterAI.m_targetStatic = null;
-			monsterAI.Flee(dt, monsterAI.m_targetCreature.transform.position);
-		}
 	}
 }

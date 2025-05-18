@@ -3,7 +3,7 @@
 **Gear up, become feared!**
 
 This mod aims to make progression slightly more rewarding by causing enemies to react to the level of your character.
-As you get better gear, enemies think twice about attacking or even outright flee.
+As you get better gear, enemies think twice about attacking, or even outright flee.
 
 ## Requirements
 
@@ -20,11 +20,12 @@ Recommended to use https://thunderstore.io/package/ebkr/r2modman/
 
 1. Install BepInExPack Valheim https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/
 2. Install Jotunn https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/
-3. Extract the archive into your Bepinex\plugins folder.
+3. Extract this archive into your Bepinex\plugins folder.
 
 ## Compatibility
 
-Not tested with other mods, or multiplayer.
+- Primarily modifies the monsters' AI, so possibly incompatible with other similar mods.
+- Only the base monsters and gear are configured. Anything custom should be ignored.
 
 ## Source
 
