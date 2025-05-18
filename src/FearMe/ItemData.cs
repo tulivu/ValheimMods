@@ -4,6 +4,8 @@ namespace FearMe
 {
 	internal static class ItemData
 	{
+		// https://valheim-wiki.com/Category:Armor
+		// https://valheim.fandom.com/wiki/Armor
 		public enum BiomeItemLevel
 		{
 			None		= 0, // Naked
@@ -26,10 +28,11 @@ namespace FearMe
 
 		private static IDictionary<string, int> GetDefaults()
 		{
+			// https://valheim-modding.github.io/Jotunn/data/localization/translations/English.html
 			return new Dictionary<string, int>()
 			{
 				// Helmet
-				{ "$item_helmet_midsummercrown",    (int)BiomeItemLevel.Starter},
+				{"$item_helmet_midsummercrown",     (int)BiomeItemLevel.Starter},
 				{"$item_helmet_yule",               (int)BiomeItemLevel.Starter},
 				{"$item_helmet_dverger",            (int)BiomeItemLevel.Starter},
 				{"$item_helmet_odin",               (int)BiomeItemLevel.Starter},

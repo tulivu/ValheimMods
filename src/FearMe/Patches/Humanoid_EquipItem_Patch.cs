@@ -1,11 +1,9 @@
-﻿using System;
-using HarmonyLib;
+﻿using HarmonyLib;
+using System;
 
 namespace FearMe.Patches
 {
-#if DEBUG
-	[HarmonyDebug]
-#endif
+	//[HarmonyDebug]
 	[HarmonyPatch(typeof(Humanoid), nameof(Humanoid.EquipItem))]
 	public static class Humanoid_EquipItem_Patch
 	{

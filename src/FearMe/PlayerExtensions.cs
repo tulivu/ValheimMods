@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Jotunn.Entities;
+using Jotunn.Managers;
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using Jotunn.Entities;
-using Jotunn.Managers;
+using System.Linq;
 
 namespace FearMe
 {
@@ -24,8 +25,16 @@ namespace FearMe
 					return 0;
 
 
-				if (!_playersItemLevels.TryGetValue(player.GetPlayerID(), out int itemLevel))
-					itemLevel = UpdatePlayerItemLevel(player);
+				int itemLevel = 0;
+
+				var playerId = player.GetPlayerID();
+				if (playerId != 0)
+				{
+					if (!_playersItemLevels.TryGetValue(playerId, out itemLevel))
+					{
+						itemLevel = UpdatePlayerItemLevel(playerId, player);
+					}
+				}
 
 				return itemLevel;
 			}
@@ -38,48 +47,47 @@ namespace FearMe
 
 		private static void SetPlayerItemLevel(long playerId, int playerItemLevel, bool send)
 		{
-#if DEBUG
-			Jotunn.Logger.LogDebug($"Setting player {playerId} to {playerItemLevel}");
-#endif
+			_playersItemLevels[playerId] = playerItemLevel;
 
-			_playersItemLevels[playerId] = playerItemLevel; // Cache the calculation for later
-
-			if(send)
+			if (send)
 				SendPlayerItemLevel(playerId, playerItemLevel);
 		}
 
-		public static int UpdatePlayerItemLevel(this Player player)
+		public static void UpdatePlayerItemLevel(this Player player)
 		{
 			try
 			{
 				if (!Main.Enabled)
-					return 0;
+					return;
 
-
-				int playerItemLevel = 0;
 
 				var playerId = player.GetPlayerID();
-				if (playerId != 0)
-				{
-					(int itemLevelSum, int qualitySum, int numItems) = player.SumEquipment();
-					playerItemLevel = CalculateItemLevel(itemLevelSum, qualitySum, numItems);
-
-					if (!_playersItemLevels.TryGetValue(playerId, out var previousPlayerItemLevel) || previousPlayerItemLevel != playerItemLevel)
-					{
-						SetPlayerItemLevel(playerId, playerItemLevel, send: true);
-					}
-				}
-
-				return playerItemLevel;
+				UpdatePlayerItemLevel(playerId, player);
 			}
 			catch (Exception e)
 			{
 				Utils.LogException(e, $"Exception during {nameof(UpdatePlayerItemLevel)}:");
-				return 0;
 			}
 		}
 
-		// Figure out the armor levels of the equipped gear, based on the biomes they are from
+		private static int UpdatePlayerItemLevel(long playerId, Player player)
+		{
+			int playerItemLevel = 0;
+
+			if (playerId != 0)
+			{
+				(int itemLevelSum, int qualitySum, int numItems) = player.SumEquipment();
+				playerItemLevel = CalculateItemLevel(itemLevelSum, qualitySum, numItems);
+
+				if (!_playersItemLevels.TryGetValue(playerId, out var previousPlayerItemLevel) || previousPlayerItemLevel != playerItemLevel)
+				{
+					SetPlayerItemLevel(playerId, playerItemLevel, send: true);
+				}
+			}
+
+			return playerItemLevel;
+		}
+
 		private static (int itemLevelSum, int qualitySum, int numItems) SumEquipment(this Player player)
 		{
 			var itemLevelSum = 0;
@@ -90,6 +98,7 @@ namespace FearMe
 
 			if (player.m_helmetItem != null)
 			{
+				// Only count items we know about
 				if (ItemData.ItemLevels.TryGetValue(player.m_helmetItem.m_shared.m_name, out itemLevel))
 				{
 					itemLevelSum += itemLevel;
@@ -98,6 +107,8 @@ namespace FearMe
 
 				qualitySum += player.m_helmetItem.m_quality;
 			}
+			else
+				numItems++; // An empty slot counts as level 0
 
 			if (player.m_chestItem != null)
 			{
@@ -109,6 +120,8 @@ namespace FearMe
 
 				qualitySum += player.m_chestItem.m_quality;
 			}
+			else
+				numItems++;
 
 			// Ignore the cloak, since it's more utility than armor.
 			/*
@@ -122,6 +135,8 @@ namespace FearMe
 
 				qualitySum += player.m_shoulderItem.m_quality;
 			}
+			else
+				numItems++;
 			*/
 
 			if (player.m_legItem != null)
@@ -134,6 +149,8 @@ namespace FearMe
 
 				qualitySum += player.m_legItem.m_quality;
 			}
+			else
+				numItems++;
 
 			return (itemLevelSum, qualitySum, numItems);
 		}
@@ -152,6 +169,7 @@ namespace FearMe
 
 
 		private static CustomRPC _playerItemLevelRPC;
+		private static CustomRPC _allPlayersItemLevelsRPC;
 
 		public static void RegisterRPCs()
 		{
@@ -159,22 +177,24 @@ namespace FearMe
 				"RPC_PlayerItemLevel",
 				OnServerReceive_PlayerItemLevelRPC,
 				OnClientReceive_PlayerItemLevelRPC);
+
+			_allPlayersItemLevelsRPC = NetworkManager.Instance.AddRPC(
+				"RPC_AllPlayersItemLevels",
+				OnServerReceive_AllPlayersItemLevelsRPC,
+				OnClientReceive_AllPlayersItemLevelsRPC);
 		}
 
 		private static IEnumerator OnServerReceive_PlayerItemLevelRPC(long sender, ZPackage package)
 		{
 			try
 			{
-#if DEBUG
-				Jotunn.Logger.LogDebug($"{nameof(OnServerReceive_PlayerItemLevelRPC)} from {sender}");
-#endif
-
 				if (package != null && package.Size() > 0)
 				{
 					var playerId = package.ReadLong();
 					var playerItemLevel = package.ReadInt();
 
-					SetPlayerItemLevel(playerId, playerItemLevel, true);
+					// On the server, track the players' levels to send to the clients
+					SetPlayerItemLevel(playerId, playerItemLevel, send: false);
 				}
 			}
 			catch (Exception e)
@@ -187,21 +207,43 @@ namespace FearMe
 
 		private static IEnumerator OnClientReceive_PlayerItemLevelRPC(long sender, ZPackage package)
 		{
+			yield break;
+		}
+
+		private static void SendPlayerItemLevel(long playerId, int playerItemLevel)
+		{
+			if (ZNet.instance == null)
+				return;
+
+			var package = new ZPackage();
+
+			package.Write(playerId);
+			package.Write(playerItemLevel);
+
+			_playerItemLevelRPC.SendPackage(ZRoutedRpc.Everybody, package);
+		}
+
+		private static IEnumerator OnServerReceive_AllPlayersItemLevelsRPC(long sender, ZPackage package)
+		{
+			yield break;
+		}
+
+		private static IEnumerator OnClientReceive_AllPlayersItemLevelsRPC(long sender, ZPackage package)
+		{
 			try
 			{
-#if DEBUG
-				Jotunn.Logger.LogDebug($"{nameof(OnClientReceive_PlayerItemLevelRPC)} from {sender}");
-#endif
-
 				if (package != null && package.Size() > 0)
 				{
-					var playerId = package.ReadLong();
-					var playerItemLevel = package.ReadInt();
+					ClearPlayerItemLevels();
 
-					// If the server is repeating our own message, skip it
-					var localPlayerId = Player.m_localPlayer?.GetPlayerID() ?? 0;
-					if (localPlayerId != 0 && localPlayerId != playerId)
-						SetPlayerItemLevel(playerId, playerItemLevel, false);
+					var numRecords = package.ReadInt();
+					for (var i = 0; i < numRecords; i++)
+					{
+						var playerId = package.ReadLong();
+						var playerItemLevel = package.ReadInt();
+
+						SetPlayerItemLevel(playerId, playerItemLevel, send: false);
+					}
 				}
 			}
 			catch (Exception e)
@@ -212,33 +254,24 @@ namespace FearMe
 			yield break;
 		}
 
-		private static void SendPlayerItemLevel(long playerId, int playerItemLevel)
-		{
-			if (!ZNet.IsSinglePlayer)
-			{
-#if DEBUG
-				var sender = ZRoutedRpc.instance == null ? "NULL" : ZRoutedRpc.instance.m_id.ToString();
-				Jotunn.Logger.LogDebug($"Sending {playerId} {playerItemLevel} from {sender} to {ZRoutedRpc.Everybody}");
-#endif
-
-				var package = new ZPackage();
-				package.Write(playerId);
-				package.Write(playerItemLevel);
-				_playerItemLevelRPC.SendPackage(ZRoutedRpc.Everybody, package);
-			}
-		}
-
+		// Periodically send the current players' levels.
 		public static void BroadcastPlayerItemLevels()
 		{
 			try
 			{
-				if (!ZNet.IsSinglePlayer)
+				if (!Main.Enabled || !_playersItemLevels.Any() || ZNet.instance == null)
+					return;
+
+				ZPackage package = new ZPackage();
+
+				package.Write(_playersItemLevels.Count);
+				foreach (var x in _playersItemLevels)
 				{
-					foreach (var x in _playersItemLevels)
-					{
-						SendPlayerItemLevel(x.Key, x.Value);
-					}
+					package.Write(x.Key);
+					package.Write(x.Value);
 				}
+
+				_allPlayersItemLevelsRPC.SendPackage(ZRoutedRpc.Everybody, package);
 			}
 			catch (Exception e)
 			{

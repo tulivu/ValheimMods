@@ -1,106 +1,129 @@
-﻿using System.Collections.Generic;
+﻿using HarmonyLib;
+using System.Collections.Generic;
 using System.Reflection.Emit;
-using HarmonyLib;
-using UnityEngine;
 
 namespace FearMe.Patches
 {
-#if DEBUG
-	[HarmonyDebug]
-#endif
+	//[HarmonyDebug]
 	[HarmonyPatch(typeof(MonsterAI), nameof(MonsterAI.UpdateAI))]
 	public static class MonsterAI_UpdateAI_Patch
 	{
 		public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
 		{
-			return new CodeMatcher(instructions, generator)
-
-				/*
-				 * Look for "this.m_fleeIfHurtWhenTargetCantBeReached" to find the code below, which is along with the other Flee() checks:
-				 * 
-				 * ...
-				 * if (**m_fleeIfHurtWhenTargetCantBeReached** && m_targetCreature != null && m_timeSinceAttacking > 30f && m_timeSinceHurt < 20f)
-				 * {
-				 *	Flee(dt, m_targetCreature.transform.position);
-				 *	m_lastKnownTargetPos = this.transform.position;
-				 *	m_updateTargetTimer = 1f;
-				 *	return true;
-				 * }
-				 * ...
-				 */
+			/*
+			 * Look for "this.m_fleeIfHurtWhenTargetCantBeReached" to find the code below, which is along with the other Flee() checks:
+			 * 
+			 * ...
+			 * if (**m_fleeIfHurtWhenTargetCantBeReached** && m_targetCreature != null && m_timeSinceAttacking > 30f && m_timeSinceHurt < 20f)
+			 * {
+			 *	 Flee(dt, m_targetCreature.transform.position);
+			 *	 m_lastKnownTargetPos = this.transform.position;
+			 *	 m_updateTargetTimer = 1f;
+			 *	 return true;
+			 * }
+			 * ...
+			 */
+			var matcher = new CodeMatcher(instructions, generator)
 				.MatchStartForward(
 					  new CodeMatch(OpCodes.Ldarg_0)
-					, new CodeMatch(i => i.opcode == OpCodes.Ldfld && i.operand.ToString().Contains("fleeIfHurtWhenTargetCantBeReached"))
+					, new CodeMatch(new CodeInstruction(
+						OpCodes.Ldfld,
+						AccessTools.Field(
+							typeof(MonsterAI),
+							nameof(MonsterAI.m_fleeIfHurtWhenTargetCantBeReached))))
 				)
 
 				// Handled in Main - disables the mod
-				.ThrowIfInvalid("Could not find location to patch in MonsterAI.UpdateAI")
+				.ThrowIfInvalid("Could not find location to patch in MonsterAI.UpdateAI");
 
-				/*
-				 * Insert this custom code:
-				 * 
-				 * // If GetFearLevel() is FearLevel.Afraid:2, then m_targetCreature is a scary Player - Flee() from them!
-				 * // For FearLevel.Cautious:1, m_targetCreature will be null from BaseAI_FindEnemy_Patch, so continue with normal code to wander or whatever
-				 * // For FearLevel.Unafraid:0, continue with normal code to do the normal charge/circle/attack logic
-				 * // (Should check Main.Enabled too, but writing IL is a hassle, so relying on check in GetFearLevel instead)
-				 * 
-				 * if(Fear.GetFearLevel(this, this.m_targetCreature) < 2) 
-				 *	goto LABEL
-				 * 
-				 * this.Flee(dt, this.m_targetCreature.transform.position);
-				 * return true;
-				 * 
-				 * LABEL:
-				 * ...
-				 *
-				 */
 
-				// Create a label at the current location, which will get pushed down as code is inserted
-				.CreateLabel(out Label label)
+			/*
+			 * Insert this custom code:
+			 * 
+			 * // If GetFearLevel()
+			 * //   Is FearLevel.Afraid:2, then m_targetCreature is a scary Player -
+			 * //     Flee() from them!
+			 * //   Is FearLevel.Cautious:1, then m_targetCreature will be null from BaseAI_FindEnemy_Patch -
+			 * //     continue with normal code to wander or whatever
+			 * //   Is FearLevel.Unafraid:0, then
+			 * //     continue with normal code to do the normal charge/circle/attack logic
+			 * 
+			 * ...
+			 * OLDLABELS:
+			 * 
+			 * if(Fear.GetFearLevel(this, this.m_targetCreature) < 2) 
+			 *	 goto NEWLABEL
+			 * 
+			 * MonsterAI_UpdateAI_Patch.RunAway(this, dt);
+			 * 
+			 * return true;
+			 * 
+			 * NEWLABEL:
+			 * ...
+			 *
+			*/
 
+			// Setup the labels so existing code jumps to the start of the new block of code, instead of jumping over it.
+
+			var oldLabels = matcher.Labels;
+			matcher.Labels = new List<Label>();
+
+			matcher.CreateLabel(out var newLabel);
+
+			matcher
 						// (this,
-						.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
+						.Insert(new CodeInstruction(OpCodes.Ldarg_0))
+						.AddLabels(oldLabels)
+						.Advance(1)
 
 						// this
 						.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
 						// .m_targetCreature)
-						.InsertAndAdvance(new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(MonsterAI), nameof(MonsterAI.m_targetCreature))))
+						.InsertAndAdvance(new CodeInstruction(
+							OpCodes.Ldfld,
+							AccessTools.Field(
+								typeof(MonsterAI),
+								nameof(MonsterAI.m_targetCreature))))
 
 					// BaseAIExtensions.GetFearLevel(this, this.m_targetCreature)
-					.InsertAndAdvance(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(MonsterExtensions), nameof(MonsterExtensions.GetFearLevel))))
+					.InsertAndAdvance(new CodeInstruction(
+						OpCodes.Call,
+						AccessTools.Method(
+							typeof(MonsterExtensions),
+							nameof(MonsterExtensions.GetFearLevel))))
 
 					// constant: 2 (FearLevel.Afraid)
 					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldc_I4_2))
 
-				// If Fear.GetFearLevel() < 2 GOTO label
-				.InsertAndAdvance(new CodeInstruction(OpCodes.Blt, label))
+				// If (BaseAIExtensions.GetFearLevel(this, this.m_targetCreature) < FearLevel.Afraid)
+				//   jump to NEWLABEL;
+				.InsertAndAdvance(new CodeInstruction(OpCodes.Blt, newLabel))
 
-				// this
-				.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
+					// Else
+
+					// this
+					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
 
 					// dt
 					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_1))
 
-					// this
-					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldarg_0))
-					// .m_targetCreature
-					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldfld, AccessTools.Field(typeof(MonsterAI), "m_targetCreature")))
-					// .transform
-					.InsertAndAdvance(new CodeInstruction(OpCodes.Callvirt, AccessTools.PropertyGetter(typeof(Component), "transform")))
-					// .position
-					.InsertAndAdvance(new CodeInstruction(OpCodes.Callvirt, AccessTools.PropertyGetter(typeof(Transform), "position")))
+				// MonsterAI_UpdateAI_Patch.RunAway(this, dt);
+				.InsertAndAdvance(new CodeInstruction(
+					OpCodes.Call,
+					AccessTools.Method(
+						typeof(MonsterExtensions),
+						nameof(MonsterExtensions.RunAway))))
 
-				// .Flee(dt, this.m_targetCreature.transform.position)
-				.InsertAndAdvance(new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(BaseAI), "Flee")))
-				// Return value not used, so clear it off the stack
-				.InsertAndAdvance(new CodeInstruction(OpCodes.Pop))
 
-				// constant: 1 (true)
-				.InsertAndAdvance(new CodeInstruction(OpCodes.Ldc_I4_1))
+					// constant: 1 (true)
+					.InsertAndAdvance(new CodeInstruction(OpCodes.Ldc_I4_1))
+
 				// return true
-				.InsertAndAdvance(new CodeInstruction(OpCodes.Ret))
+				.InsertAndAdvance(new CodeInstruction(OpCodes.Ret));
 
-				.Instructions();
+			// NEWLABEL ends up here
+
+			return matcher.Instructions();
 		}
 	}
 }

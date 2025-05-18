@@ -1,12 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using Jotunn.Extensions;
 using Jotunn.Utils;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 
 namespace FearMe
 {
@@ -37,24 +37,27 @@ namespace FearMe
 
 		// OPTION: Is the mod as a whole enabled?
 		/*
-		 * This really, really need this to be reliably set and checked
+		 * This needs to be reliably set and checked
 		 * because if there are exceptions thrown in the Player class,
 		 * it can trigger the game to DESTROY the character, lossing it completely.
+		 * 
 		 * E.g., patching could fail when the game updates, causing null references, if not careful.
 		 */
 		public static bool Enabled { get { return _loaded && _enabled != null && _enabled.Value; } }
 		private static bool _loaded = false;
 		private static ConfigEntry<bool> _enabled;
 
-		private Harmony _harmony;
+		private static ConfigEntry<string> _itemLevels;
 
-#pragma warning disable IDE0051 // "Remove unused private members" - they are used, but only at runtime, so the compiler can't see it
+		private static ConfigEntry<string> _monstersBravery;
+
+#pragma warning disable IDE0051 // IDE0051: "Remove unused private members" - they are used, but only at runtime, so the compiler can't see it
 		private void Awake()
 		{
 			try
 			{
-				_harmony = Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PLUGIN_GUID);
-				
+				Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), PLUGIN_GUID);
+
 				LoadConfig();
 				RegisterRPCs();
 
@@ -74,27 +77,59 @@ namespace FearMe
 		}
 #pragma warning restore IDE0051
 
+		private const string GENERAL_SECTION = "General";
+		private const string DATA_SECTION = "Data";
+
 		private void LoadConfig()
 		{
-			BindConfig();
-			BindData();
-		}
-
-		private void UnloadConfig()
-		{
-			UnbindConfig();
-			UnbindData();
-		}
-
-		private void BindConfig()
-		{
 			_enabled = Config.BindConfig(
-				section: "General",
+				section: GENERAL_SECTION,
 				key: "Enabled",
 				description: "Enable this mod",
 				defaultValue: true);
-
 			_enabled.SettingChanged += Enabled_SettingChanged;
+
+
+			_itemLevels = Config.BindConfig<string>(
+				section: DATA_SECTION,
+				key: "ItemLevels",
+				description:
+@"Armor levels, based on the biomes they come from.
+	0 - Naked
+	1 - Starter (Rags)
+	2 - Meadows (Leather)
+	3 - BlackForest (Bronze/Troll)
+	4 - Swamp (Iron/Root)
+	5 - Mountain (Wolf/Fenris)
+	6 - Plains (Padded)
+	7 - Mistlands (Carapace/Mage)
+	8 - Ashlands (Flametal/Ashlands Mage)",
+				defaultValue: null);
+			_itemLevels.SettingChanged += ItemLevels_SettingChanged;
+
+			// Put the default values in the config so it's easier to override, if anyone wants to.
+			if (string.IsNullOrWhiteSpace(_itemLevels.Value))
+				_itemLevels.Value = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
+
+
+			_monstersBravery = Config.BindConfig<string>(
+				section: DATA_SECTION,
+				key: "MonsterBravery",
+				description:
+@"Bravery levels, correlated to the biomes the monsters are in, with some tweaks for flavor.
+	2 - Meadows
+	3 - Black Forest
+	4 - Swamp
+	5 - Mountain
+	6 - Plains
+	7 - Mistlands
+	8 - Ashlands",
+				defaultValue: null);
+			_monstersBravery.SettingChanged += MonstersBravery_SettingChanged;
+
+			// Put the default values in the config so it's easier to override, if anyone wants to.
+			if (string.IsNullOrWhiteSpace(_monstersBravery.Value))
+				_monstersBravery.Value = SimpleJson.SimpleJson.SerializeObject(MonsterData.MonsterBravery);
 		}
 
 		private void Enabled_SettingChanged(object sender, System.EventArgs e)
@@ -105,171 +140,58 @@ namespace FearMe
 			PlayerExtensions.ClearPlayerItemLevels();
 		}
 
-		private void UnbindConfig()
+		private void ItemLevels_SettingChanged(object sender, EventArgs e)
+		{
+			var args = e as SettingChangedEventArgs;
+			var itemLevelsJson = args?.ChangedSetting?.BoxedValue as string;
+			if (string.IsNullOrWhiteSpace(itemLevelsJson))
+				ItemData.ItemLevels = null;
+			else
+			{
+				var itemLevels = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(itemLevelsJson);
+				if (itemLevels == null || !itemLevels.Any())
+					ItemData.ItemLevels = null;
+				else
+					ItemData.ItemLevels = itemLevels;
+			}
+		}
+
+		private void MonstersBravery_SettingChanged(object sender, EventArgs e)
+		{
+			var args = e as SettingChangedEventArgs;
+			var monstersBraveryJson = args?.ChangedSetting?.BoxedValue as string;
+			if (string.IsNullOrWhiteSpace(monstersBraveryJson))
+				MonsterData.MonsterBravery = null;
+			else
+			{
+				var monstersBravery = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(monstersBraveryJson);
+				if (monstersBravery == null || !monstersBravery.Any())
+					MonsterData.MonsterBravery = null;
+				else
+					MonsterData.MonsterBravery = monstersBravery;
+			}
+		}
+
+		private void UnloadConfig()
 		{
 			if (_enabled != null)
 			{
 				_enabled.SettingChanged -= Enabled_SettingChanged;
 				_enabled = null;
 			}
+
+			if (_itemLevels != null)
+			{
+				_itemLevels.SettingChanged -= ItemLevels_SettingChanged;
+				_itemLevels = null;
+			}
+
+			if (_monstersBravery != null)
+			{
+				_monstersBravery.SettingChanged -= MonstersBravery_SettingChanged;
+				_monstersBravery = null;
+			}
 		}
-
-		private void BindData()
-		{
-			var itemDataPath = Path.Combine(BepInEx.Paths.ConfigPath, "FearMe.ItemData.json");
-			if (File.Exists(itemDataPath))
-			{
-				var json = File.ReadAllText(itemDataPath);
-				var itemLevels = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(json);
-				ItemData.ItemLevels = itemLevels;
-			}
-#if DEBUG
-			else
-			{
-				var json = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
-				File.WriteAllText(itemDataPath, json);
-			}
-#endif
-
-			var monsterDataPath = Path.Combine(BepInEx.Paths.ConfigPath, "FearMe.MonsterData.json");
-			if (File.Exists(monsterDataPath))
-			{
-				var json = File.ReadAllText(monsterDataPath);
-				var monsterBravery = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(json);
-				MonsterData.MonsterBravery = monsterBravery;
-			}
-#if DEBUG
-			else
-			{
-				var json = SimpleJson.SimpleJson.SerializeObject(MonsterData.MonsterBravery);
-				File.WriteAllText(monsterDataPath, json);
-			}
-#endif
-		}
-
-		private void UnbindData()
-		{
-		}
-
-		//private void BindData()
-		//{
-		//	BindData("ItemData.json", ImportItemData, ExportItemData);
-		//	BindData("MonsterData.json", ImportMonsterData, ExportMonsterData);
-		//}
-
-		//private void ImportItemData(string data)
-		//{
-		//	var itemLevels = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(data);
-		//	ItemData.ItemLevels = itemLevels;
-		//}
-
-		//private string ExportItemData()
-		//{
-		//	var data = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
-		//	return data;
-		//}
-
-		//private void ImportMonsterData(string data)
-		//{
-		//	var monsterBravery = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(data);
-		//	MonsterData.MonsterBravery = monsterBravery;
-		//}
-
-		//private string ExportMonsterData()
-		//{
-		//	var data = SimpleJson.SimpleJson.SerializeObject(MonsterData.MonsterBravery);
-		//	return data;
-		//}
-
-		//private void UnbindData()
-		//{
-		//	foreach (var watcher in _watchers)
-		//	{
-		//		watcher.Dispose();
-		//	}
-		//	_watchers.Clear();
-		//}
-
-		//private IList<DataWatcher> _watchers = new List<DataWatcher>();
-
-		//private void BindData(string filename, Action<string> importData, Func<string> exportData = null)
-		//{
-		//	var dataWatcher = new DataWatcher(filename, importData, exportData);
-		//	_watchers.Add(dataWatcher);
-		//}
-
-		//private class DataWatcher : IDisposable
-		//{
-		//	private FileSystemWatcher _watcher;
-		//	private DateTimeOffset _lastUpdate = DateTimeOffset.MinValue;
-
-		//	private Action<string> _importData;
-		//	private Func<string> _exportData;
-
-		//	private bool _disposedValue = false;
-
-
-		//	public DataWatcher(string filename, Action<string> importData, Func<string> exportData)
-		//	{
-		//		var dataFileWatcher = new FileSystemWatcher(BepInEx.Paths.ConfigPath, filename);
-		//		dataFileWatcher.Changed += ReloadDataFile;
-		//		dataFileWatcher.Created += ReloadDataFile;
-		//		dataFileWatcher.Renamed += ReloadDataFile;
-
-		//		dataFileWatcher.SynchronizingObject = ThreadingHelper.SynchronizingObject;
-		//		dataFileWatcher.EnableRaisingEvents = true;
-
-		//		_watcher = dataFileWatcher;
-		//		_importData = importData;
-		//		_exportData = exportData;
-		//	}
-
-		//	private void ReloadDataFile(object sender, FileSystemEventArgs eventArgs)
-		//	{
-		//		try
-		//		{
-		//			if ((DateTimeOffset.UtcNow - _lastUpdate).TotalMilliseconds < 2000)
-		//				return;
-
-		//			if (File.Exists(eventArgs.FullPath))
-		//			{
-		//				var data = File.ReadAllText(eventArgs.FullPath);
-		//				_importData(data);
-		//			}
-		//			else
-		//			{
-		//				if (_exportData != null)
-		//				{
-		//					var data = _exportData();
-		//					File.WriteAllText(data, eventArgs.FullPath);
-		//				}
-		//			}
-		//		}
-		//		catch (Exception ex)
-		//		{
-		//			Utils.LogException(ex, "Exception during ReloadDataFile:");
-		//		}
-		//	}
-
-		//	protected virtual void Dispose(bool disposing)
-		//	{
-		//		if (!_disposedValue)
-		//		{
-		//			if (disposing)
-		//			{
-		//				_watcher.Dispose();
-		//			}
-
-		//			_disposedValue = true;
-		//		}
-		//	}
-
-		//	public void Dispose()
-		//	{
-		//		Dispose(disposing: true);
-		//		GC.SuppressFinalize(this);
-		//	}
-		//}
 
 		private void RegisterRPCs()
 		{

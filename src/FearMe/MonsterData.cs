@@ -21,6 +21,7 @@ namespace FearMe
 
 		private static IDictionary<string, int> GetDefaults()
 		{
+			// https://valheim-modding.github.io/Jotunn/data/localization/translations/English.html
 			return new Dictionary<string, int>()
 			{
 				{"$enemy_neck", 2},

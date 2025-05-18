@@ -5,8 +5,8 @@ namespace FearMe
 	public enum FearLevel
 	{
 		NotAfraid = 0, // Do the normal attacking
-		Cautious = 1, // Ignore the target - don't attack, but don't flee either
-		Afraid = 2, // Scary! Run away!
+		Cautious =  1, // Ignore the target - don't attack, but don't flee either
+		Afraid =    2, // Scary! Run away!
 	}
 
 	public static class MonsterExtensions
@@ -23,19 +23,20 @@ namespace FearMe
 				if (targetCreature == null || targetCreature is not Player player)
 					return FearLevel.NotAfraid;
 
-				// Shouldn't happen, but make sure there's actually a monster to be fearful
-				if (ai == null || ai.m_character == null || ai.m_character.m_name == null)
+				if (ai == null || ai is not MonsterAI monsterAI)
 					return FearLevel.NotAfraid;
+
+				if (!ai.IsAlerted() || monsterAI.IsEventCreature())
+					return FearLevel.NotAfraid;
+
+				if (ai.m_character == null || ai.m_character.m_name == null)
+					return FearLevel.NotAfraid;
+
 				var character = ai.m_character;
 
 				if (character.IsTamed() || character.IsBoss())
 					return FearLevel.NotAfraid;
 
-				if (ai is MonsterAI monsterAI)
-				{
-					if (monsterAI.m_eventCreature)
-						return FearLevel.NotAfraid;
-				}
 
 				var monsterBravery = character.GetMonsterBravery();
 				if (monsterBravery <= 0)
@@ -82,7 +83,7 @@ namespace FearMe
 				}
 				else
 				{
-					monsterBravery += (character.m_level-1); // Starred monsters are braver!
+					monsterBravery += (character.GetLevel() - 1); // Starred monsters are braver!
 				}
 
 				return monsterBravery;
@@ -93,6 +94,14 @@ namespace FearMe
 
 				return -1;
 			}
+		}
+
+		public static void RunAway(this MonsterAI monsterAI, float dt)
+		{
+			//Jotunn.Logger.LogInfo($"{monsterAI?.m_character?.m_name ?? "NULL"} is fleeing in terror");
+
+			monsterAI.m_targetStatic = null;
+			monsterAI.Flee(dt, monsterAI.m_targetCreature.transform.position);
 		}
 	}
 }

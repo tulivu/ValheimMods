@@ -1,15 +1,13 @@
-﻿using System;
-using HarmonyLib;
+﻿using HarmonyLib;
+using System;
 
 namespace FearMe.Patches
 {
-#if DEBUG
-	[HarmonyDebug]
-#endif
+	//[HarmonyDebug]
 	[HarmonyPatch(typeof(ZNet), nameof(ZNet.SendPlayerList))]
 	public static class ZNet_SendPlayerList_Patch
 	{
-		public static void Postfix()
+		public static void Postfix(ZNet __instance)
 		{
 			try
 			{

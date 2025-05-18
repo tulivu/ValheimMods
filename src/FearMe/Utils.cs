@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Text;
-using BepInEx.Logging;
 
 namespace FearMe
 {
