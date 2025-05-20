@@ -22,10 +22,11 @@ namespace FearMe
 	// https://valheim-modding.github.io/Jotunn/data/localization/translations/English.html
 	// https://github.com/loco-choco/TranspilerHandbook/blob/main/transpiler.md
 
-	// TODOs:
-	// Different behaviors at night?
-	// Smarter BroadcastPlayerItemLevels to reduce frequency?
-	// Support for custom armor/monsters?
+	// TODO:
+	//   Different behaviors at night
+	//   Support for custom armor/monsters
+	//   Clear out old players from the list
+	//   Smarter BroadcastPlayerItemLevels to reduce frequency?
 
 
 	[BepInPlugin(PLUGIN_GUID, PLUGIN_NAME, PLUGIN_VERSION)]
@@ -76,9 +77,16 @@ namespace FearMe
 
 		private void OnDestroy()
 		{
-			_loaded = false;
+			try
+			{
+				_loaded = false;
 
-			UnloadConfig();
+				UnloadConfig();
+			}
+			catch (Exception e)
+			{
+				Utils.LogException(e, "Exception during Main.OnDestroy:");
+			}
 		}
 #pragma warning restore IDE0051
 
@@ -113,6 +121,7 @@ namespace FearMe
 			_itemLevels.SettingChanged += ItemLevels_SettingChanged;
 
 			// Put the default values in the config so it's easier to override, if anyone wants to.
+			// Might regret this later, when the config needs to change...
 			if (string.IsNullOrWhiteSpace(_itemLevels.Value))
 				_itemLevels.Value = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
 

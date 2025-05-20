@@ -20,7 +20,8 @@ namespace FearMe
 		}
 
 		// Armor levels, based on the biomes they come from.
-		public static IDictionary<string, int> ItemLevels {
+		public static IDictionary<string, int> ItemLevels
+		{
 			get { return _itemLevels != null ? _itemLevels : (_itemLevels = GetDefaults()); }
 			set { _itemLevels = value; }
 		}

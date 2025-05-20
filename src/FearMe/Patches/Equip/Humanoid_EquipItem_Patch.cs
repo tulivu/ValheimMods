@@ -1,9 +1,8 @@
 ﻿using HarmonyLib;
 using System;
 
-namespace FearMe.Patches
+namespace FearMe.Patches.Equip
 {
-	//[HarmonyDebug]
 	[HarmonyPatch(typeof(Humanoid), nameof(Humanoid.EquipItem))]
 	public static class Humanoid_EquipItem_Patch
 	{
@@ -23,7 +22,7 @@ namespace FearMe.Patches
 			}
 			catch (Exception e)
 			{
-				Utils.LogException(e, "Exception during Humanoid.EquipItem_Postfix:");
+				Utils.LogException(e, $"Exception during {nameof(Humanoid_EquipItem_Patch)}:");
 			}
 		}
 	}

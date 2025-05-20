@@ -40,11 +40,11 @@
 	<ItemGroup>
 		<None Include="app.config" />
 		<None Include="packages.config" />
-		<None Include="Patches\Humanoid_EquipItem_Patch.cs" />
+		<None Include="Patches\Equip\Humanoid_EquipItem_Patch.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="JotunnLib" Version="2.24.3" />
+		<PackageReference Include="JotunnLib" Version="2.25.0" />
 	</ItemGroup>
 
 	<Import Project="$(SolutionDir)build\Environment.props" />

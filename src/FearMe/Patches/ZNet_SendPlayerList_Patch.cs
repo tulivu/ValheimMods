@@ -3,7 +3,6 @@ using System;
 
 namespace FearMe.Patches
 {
-	//[HarmonyDebug]
 	[HarmonyPatch(typeof(ZNet), nameof(ZNet.SendPlayerList))]
 	public static class ZNet_SendPlayerList_Patch
 	{
@@ -19,7 +18,7 @@ namespace FearMe.Patches
 			}
 			catch (Exception e)
 			{
-				Utils.LogException(e, "Exception during BaseAI.FindEnemy_Postfix:");
+				Utils.LogException(e, $"Exception during {nameof(ZNet_SendPlayerList_Patch)}: ");
 			}
 		}
 	}

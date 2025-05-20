@@ -5,13 +5,13 @@ namespace FearMe
 	public enum FearLevel
 	{
 		NotAfraid = 0, // Do the normal attacking
-		Cautious =  1, // Ignore the target - don't attack, but don't flee either
-		Afraid =    2, // Scary! Run away!
+		Cautious  = 1, // Ignore the target - don't attack, but don't flee either
+		Afraid    = 2, // Scary! Run away!
 	}
 
 	public static class MonsterExtensions
 	{
-		public static FearLevel GetFearLevel(this BaseAI ai, Character targetCreature)
+		public static FearLevel GetFearLevel(this BaseAI ai, Character targetCreature, bool checkAlerted)
 		{
 			try
 			{
@@ -26,7 +26,10 @@ namespace FearMe
 				if (ai == null || ai is not MonsterAI monsterAI)
 					return FearLevel.NotAfraid;
 
-				if (!ai.IsAlerted() || monsterAI.IsEventCreature())
+				if (checkAlerted && !ai.IsAlerted())
+					return FearLevel.NotAfraid;
+
+				if (monsterAI.IsEventCreature())
 					return FearLevel.NotAfraid;
 
 				if (ai.m_character == null || ai.m_character.m_name == null)
@@ -45,6 +48,7 @@ namespace FearMe
 				var playerItemLevel = player.GetPlayerItemLevel();
 				if (playerItemLevel <= 0)
 					return FearLevel.NotAfraid;
+
 
 				FearLevel fearLevel;
 				const int fearThreshold = 2; // How many levels ahead before a player is scary. Must be >= 1

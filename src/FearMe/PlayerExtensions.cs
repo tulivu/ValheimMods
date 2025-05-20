@@ -41,16 +41,16 @@ namespace FearMe
 			catch (Exception e)
 			{
 				Utils.LogException(e, $"Exception during {nameof(GetPlayerItemLevel)}:");
+
 				return 0;
 			}
 		}
 
-		private static void SetPlayerItemLevel(long playerId, int playerItemLevel, bool send)
+		private static void SetPlayerItemLevel(long playerId, int playerItemLevel)
 		{
-			_playersItemLevels[playerId] = playerItemLevel;
+			//Jotunn.Logger.LogInfo($"SetPlayerItemLevel playerId: {playerId}, playerItemLevel: {playerItemLevel}");
 
-			if (send)
-				SendPlayerItemLevel(playerId, playerItemLevel);
+			_playersItemLevels[playerId] = playerItemLevel;
 		}
 
 		public static void UpdatePlayerItemLevel(this Player player)
@@ -72,6 +72,8 @@ namespace FearMe
 
 		private static int UpdatePlayerItemLevel(long playerId, Player player)
 		{
+			//Jotunn.Logger.LogInfo($"UpdatePlayerItemLevel playerId: {playerId}");
+
 			int playerItemLevel = 0;
 
 			if (playerId != 0)
@@ -81,7 +83,8 @@ namespace FearMe
 
 				if (!_playersItemLevels.TryGetValue(playerId, out var previousPlayerItemLevel) || previousPlayerItemLevel != playerItemLevel)
 				{
-					SetPlayerItemLevel(playerId, playerItemLevel, send: true);
+					SetPlayerItemLevel(playerId, playerItemLevel);
+					SendPlayerItemLevel(playerId, playerItemLevel);
 				}
 			}
 
@@ -186,6 +189,8 @@ namespace FearMe
 
 		private static IEnumerator OnServerReceive_PlayerItemLevelRPC(long sender, ZPackage package)
 		{
+			//Jotunn.Logger.LogInfo($"OnServerReceive_PlayerItemLevelRPC sender: {sender}");
+
 			try
 			{
 				if (package != null && package.Size() > 0)
@@ -193,8 +198,10 @@ namespace FearMe
 					var playerId = package.ReadLong();
 					var playerItemLevel = package.ReadInt();
 
-					// On the server, track the players' levels to send to the clients
-					SetPlayerItemLevel(playerId, playerItemLevel, send: false);
+					// On the server, track the players' levels to broadcast to the clients
+					SetPlayerItemLevel(playerId, playerItemLevel);
+
+					hasPlayerItemLevelsChanges = true;
 				}
 			}
 			catch (Exception e)
@@ -207,11 +214,15 @@ namespace FearMe
 
 		private static IEnumerator OnClientReceive_PlayerItemLevelRPC(long sender, ZPackage package)
 		{
+			//Jotunn.Logger.LogInfo($"OnClientReceive_PlayerItemLevelRPC sender: {sender}");
+
 			yield break;
 		}
 
 		private static void SendPlayerItemLevel(long playerId, int playerItemLevel)
 		{
+			//Jotunn.Logger.LogInfo($"SendPlayerItemLevel playerId: {playerId}, playerItemLevel: {playerItemLevel}");
+
 			if (ZNet.instance == null)
 				return;
 
@@ -225,16 +236,21 @@ namespace FearMe
 
 		private static IEnumerator OnServerReceive_AllPlayersItemLevelsRPC(long sender, ZPackage package)
 		{
+			//Jotunn.Logger.LogInfo($"OnServerReceive_AllPlayersItemLevelsRPC sender: {sender}");
+
 			yield break;
 		}
 
 		private static IEnumerator OnClientReceive_AllPlayersItemLevelsRPC(long sender, ZPackage package)
 		{
+			//Jotunn.Logger.LogInfo($"OnClientReceive_AllPlayersItemLevelsRPC sender: {sender}");
+
 			try
 			{
 				if (package != null && package.Size() > 0)
 				{
-					ClearPlayerItemLevels();
+					// TODO Not sure if this is causing issues during the instant between clearing and refilling...
+					//ClearPlayerItemLevels();
 
 					var numRecords = package.ReadInt();
 					for (var i = 0; i < numRecords; i++)
@@ -242,7 +258,7 @@ namespace FearMe
 						var playerId = package.ReadLong();
 						var playerItemLevel = package.ReadInt();
 
-						SetPlayerItemLevel(playerId, playerItemLevel, send: false);
+						SetPlayerItemLevel(playerId, playerItemLevel);
 					}
 				}
 			}
@@ -254,24 +270,40 @@ namespace FearMe
 			yield break;
 		}
 
+		private static bool hasPlayerItemLevelsChanges = false;
+		private static int playerItemLevelsBroadcastsSkipped = 0;
+
 		// Periodically send the current players' levels.
 		public static void BroadcastPlayerItemLevels()
 		{
+			//Jotunn.Logger.LogInfo($"BroadcastPlayerItemLevels");
+
 			try
 			{
 				if (!Main.Enabled || !_playersItemLevels.Any() || ZNet.instance == null)
 					return;
 
-				ZPackage package = new ZPackage();
 
-				package.Write(_playersItemLevels.Count);
-				foreach (var x in _playersItemLevels)
+				if (!hasPlayerItemLevelsChanges && playerItemLevelsBroadcastsSkipped < 10)
 				{
-					package.Write(x.Key);
-					package.Write(x.Value);
+					playerItemLevelsBroadcastsSkipped++;
 				}
+				else
+				{
+					ZPackage package = new ZPackage();
 
-				_allPlayersItemLevelsRPC.SendPackage(ZRoutedRpc.Everybody, package);
+					package.Write(_playersItemLevels.Count);
+					foreach (var x in _playersItemLevels)
+					{
+						package.Write(x.Key);
+						package.Write(x.Value);
+					}
+
+					_allPlayersItemLevelsRPC.SendPackage(ZRoutedRpc.Everybody, package);
+
+					hasPlayerItemLevelsChanges = false;
+					playerItemLevelsBroadcastsSkipped = 0;
+				}
 			}
 			catch (Exception e)
 			{
