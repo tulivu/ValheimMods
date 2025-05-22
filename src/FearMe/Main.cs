@@ -119,11 +119,7 @@ namespace FearMe
 	8 - Ashlands (Flametal/Ashlands Mage)",
 				defaultValue: null);
 			_itemLevels.SettingChanged += ItemLevels_SettingChanged;
-
-			// Put the default values in the config so it's easier to override, if anyone wants to.
-			// Might regret this later, when the config needs to change...
-			if (string.IsNullOrWhiteSpace(_itemLevels.Value))
-				_itemLevels.Value = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
+			ItemLevels_SettingChanged(_itemLevels.Value, first: true);
 
 
 			_monstersBravery = Config.BindConfig<string>(
@@ -140,10 +136,7 @@ namespace FearMe
 	8 - Ashlands",
 				defaultValue: null);
 			_monstersBravery.SettingChanged += MonstersBravery_SettingChanged;
-
-			// Put the default values in the config so it's easier to override, if anyone wants to.
-			if (string.IsNullOrWhiteSpace(_monstersBravery.Value))
-				_monstersBravery.Value = SimpleJson.SimpleJson.SerializeObject(MonsterData.MonsterBravery);
+			MonstersBravery_SettingChanged(_monstersBravery.Value, first: true);
 		}
 
 		private void Enabled_SettingChanged(object sender, System.EventArgs e)
@@ -158,15 +151,37 @@ namespace FearMe
 		{
 			var args = e as SettingChangedEventArgs;
 			var itemLevelsJson = args?.ChangedSetting?.BoxedValue as string;
-			if (string.IsNullOrWhiteSpace(itemLevelsJson))
-				ItemData.ItemLevels = null;
-			else
+			ItemLevels_SettingChanged(itemLevelsJson);
+		}
+
+		private void ItemLevels_SettingChanged(string itemLevelsJson, bool first = false)
+		{
+			try
 			{
-				var itemLevels = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(itemLevelsJson);
+				IDictionary<string, int> itemLevels = null;
+				if (!string.IsNullOrWhiteSpace(itemLevelsJson))
+					itemLevels = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(itemLevelsJson);
+
 				if (itemLevels == null || !itemLevels.Any())
+				{
 					ItemData.ItemLevels = null;
+					_itemLevels.Value = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
+				}
 				else
 					ItemData.ItemLevels = itemLevels;
+			}
+			catch (Exception)
+			{
+				if (first)
+				{
+					// If settings on disk are invalid, reset them
+					ItemData.ItemLevels = null;
+					_itemLevels.Value = SimpleJson.SimpleJson.SerializeObject(ItemData.ItemLevels);
+				}
+				else
+				{
+					// Don't care, likely editing them live - just keep whatever was last valid
+				}
 			}
 		}
 
@@ -174,15 +189,37 @@ namespace FearMe
 		{
 			var args = e as SettingChangedEventArgs;
 			var monstersBraveryJson = args?.ChangedSetting?.BoxedValue as string;
-			if (string.IsNullOrWhiteSpace(monstersBraveryJson))
-				MonsterData.MonsterBravery = null;
-			else
+			MonstersBravery_SettingChanged(monstersBraveryJson);
+		}
+
+		private void MonstersBravery_SettingChanged(string monstersBraveryJson, bool first = false)
+		{
+			try
 			{
-				var monstersBravery = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(monstersBraveryJson);
+				IDictionary<string, int> monstersBravery = null;
+				if (!string.IsNullOrWhiteSpace(monstersBraveryJson))
+					monstersBravery = SimpleJson.SimpleJson.DeserializeObject<IDictionary<string, int>>(monstersBraveryJson);
+
 				if (monstersBravery == null || !monstersBravery.Any())
+				{
 					MonsterData.MonsterBravery = null;
+					_monstersBravery.Value = SimpleJson.SimpleJson.SerializeObject(MonsterData.MonsterBravery);
+				}
 				else
 					MonsterData.MonsterBravery = monstersBravery;
+			}
+			catch (Exception)
+			{
+				if (first)
+				{
+					// If settings on disk are invalid, reset them
+					MonsterData.MonsterBravery = null;
+					_monstersBravery.Value = SimpleJson.SimpleJson.SerializeObject(MonsterData.MonsterBravery);
+				}
+				else
+				{
+					// Don't care, likely editing them live - just keep whatever was last valid
+				}
 			}
 		}
 
