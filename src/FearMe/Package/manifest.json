@@ -1,7 +1,7 @@
 ﻿{
   "name": "FearMe",
   "description": "Gear up, become feared!",
-  "version_number": "0.1.0",
+  "version_number": "0.2.0",
   "website_url": "https://github.com/tulivu/ValheimMods/tree/main/src/FearMe",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2202",

@@ -102,55 +102,38 @@ namespace FearMe
 			if (player.m_helmetItem != null)
 			{
 				// Only count items we know about
-				if (ItemData.ItemLevels.TryGetValue(player.m_helmetItem.m_shared.m_name, out itemLevel))
+				if (ItemData.ItemLevels.TryGetValue(player.m_helmetItem.m_shared.m_name, out itemLevel) && itemLevel >= 0)
 				{
 					itemLevelSum += itemLevel;
+					qualitySum += player.m_helmetItem.m_quality;
 					numItems++;
 				}
-
-				qualitySum += player.m_helmetItem.m_quality;
 			}
 			else
 				numItems++; // An empty slot counts as level 0
 
 			if (player.m_chestItem != null)
 			{
-				if (ItemData.ItemLevels.TryGetValue(player.m_chestItem.m_shared.m_name, out itemLevel))
+				if (ItemData.ItemLevels.TryGetValue(player.m_chestItem.m_shared.m_name, out itemLevel) && itemLevel >= 0)
 				{
 					itemLevelSum += itemLevel;
+					qualitySum += player.m_chestItem.m_quality;
 					numItems++;
 				}
-
-				qualitySum += player.m_chestItem.m_quality;
 			}
 			else
 				numItems++;
 
 			// Ignore the cloak, since it's more utility than armor.
-			/*
-			if (player.m_shoulderItem != null)
-			{
-				if (ItemData.ItemLevels.TryGetValue(player.m_shoulderItem.m_shared.m_name, out itemLevel))
-				{
-					itemLevelSum += itemLevel;
-					numKnownItems++;
-				}
-
-				qualitySum += player.m_shoulderItem.m_quality;
-			}
-			else
-				numItems++;
-			*/
 
 			if (player.m_legItem != null)
 			{
-				if (ItemData.ItemLevels.TryGetValue(player.m_legItem.m_shared.m_name, out itemLevel))
+				if (ItemData.ItemLevels.TryGetValue(player.m_legItem.m_shared.m_name, out itemLevel) && itemLevel >= 0)
 				{
 					itemLevelSum += itemLevel;
+					qualitySum += player.m_legItem.m_quality;
 					numItems++;
 				}
-
-				qualitySum += player.m_legItem.m_quality;
 			}
 			else
 				numItems++;
